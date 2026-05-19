@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const AVATAR_COLORS = ['#f72585','#7209b7','#4cc9f0','#ffd60a','#06d6a0','#ff6b35'];
 
@@ -54,12 +54,33 @@ function compressImage(file) {
 
 export default function AdminPanel({ state, send }) {
   const [tab, setTab] = useState('questions');
-  const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+  const [questions, setQuestions] = useState([]);
   const [timeLimit, setTimeLimit] = useState(20);
   const [editIdx, setEditIdx] = useState(null);
   const [editQ, setEditQ] = useState(null);
   const [imgLoading, setImgLoading] = useState(false);
+  const [dbLoaded, setDbLoaded] = useState(false);
   const fileRef = useRef();
+
+  // ── Charge les questions depuis le serveur (DB) au premier rendu ──────────
+  useEffect(() => {
+    if (!dbLoaded && state && state.questionsCount > 0 && questions.length === 0) {
+      // Le serveur a des questions en mémoire (rechargées depuis la DB)
+      // On demande au serveur de nous les renvoyer via un message spécial
+      send({ type: 'ADMIN_GET_QUESTIONS' });
+      setDbLoaded(true);
+    } else if (!dbLoaded && state) {
+      setDbLoaded(true);
+    }
+  }, [state]);
+
+  // ── Reçoit les questions depuis le serveur ────────────────────────────────
+  useEffect(() => {
+    if (state?.loadedQuestions) {
+      setQuestions(state.loadedQuestions);
+      setTimeLimit(state.timeLimit || 20);
+    }
+  }, [state?.loadedQuestions]);
 
   const saveAndSend = (qs, tl) => {
     send({ type: 'ADMIN_SET_QUESTIONS', questions: qs, timeLimit: tl });
